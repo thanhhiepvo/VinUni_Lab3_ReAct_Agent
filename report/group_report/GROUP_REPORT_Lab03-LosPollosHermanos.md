@@ -1,6 +1,6 @@
 # Group Report: Lab 3 - Production-Grade Agentic System
 
-- **Team Name**: Lab03-LosPollos
+- **Team Name**: Lab03-LosPollosHermanos
 - **Team Members**: Võ Thanh Hiệp, Nguyễn Công Tuấn Anh, Trần Gia Huy, Nguyễn Tuấn Minh
 - **Deployment Date**: 2026-06-01
 
