@@ -1,7 +1,7 @@
 # Individual Report: Lab 3 - Chatbot vs ReAct Agent
 
-- **Student Name**:  Võ Thanh Hiệp
-- **Student ID**: 2A202600836
+- **Student Name**:  Trần Gia Huy
+- **Student ID**: 2A202600812
 - **Date**: 01/06/2026
 
 ---
