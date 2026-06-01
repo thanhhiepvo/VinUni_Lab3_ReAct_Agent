@@ -1,74 +1,197 @@
 import os
 import re
+import json
 from typing import List, Dict, Any, Optional
 from src.core.llm_provider import LLMProvider
 from src.telemetry.logger import logger
 
 class ReActAgent:
     """
-    SKELETON: A ReAct-style Agent that follows the Thought-Action-Observation loop.
-    Students should implement the core loop logic and tool execution.
+    ReAct-style Agent that follows the Thought -> Action -> Observation -> Final Answer loop.
+
+    This implementation is beginner-friendly, uses a tools registry, prints traces,
+    and maintains internal history. Tools are simple callables provided as a list.
     """
-    
-    def __init__(self, llm: LLMProvider, tools: List[Dict[str, Any]], max_steps: int = 5):
+
+    def __init__(self, llm: LLMProvider, tools: List[Dict[str, Any]], max_steps: int = 6):
         self.llm = llm
         self.tools = tools
         self.max_steps = max_steps
-        self.history = []
+        self.history: List[Dict[str, Any]] = []
 
     def get_system_prompt(self) -> str:
         """
-        TODO: Implement the system prompt that instructs the agent to follow ReAct.
-        Should include:
-        1.  Available tools and their descriptions.
-        2.  Format instructions: Thought, Action, Observation.
+        System prompt that clearly instructs the model to produce ReAct-formatted output.
         """
-        tool_descriptions = "\n".join([f"- {t['name']}: {t['description']}" for t in self.tools])
-        return f"""
-        You are an intelligent assistant. You have access to the following tools:
-        {tool_descriptions}
+        # Build descriptions if tools provided as dicts
+        desc_lines = []
+        for t in self.tools:
+            if isinstance(t, dict):
+                name = t.get("name")
+                desc = t.get("description", "")
+                desc_lines.append(f"- {name}: {desc}")
+            else:
+                # callable tool
+                desc_lines.append(f"- {getattr(t, '__name__', str(t))}: (callable)")
 
-        Use the following format:
-        Thought: your line of reasoning.
-        Action: tool_name(arguments)
-        Observation: result of the tool call.
-        ... (repeat Thought/Action/Observation if needed)
-        Final Answer: your final response.
-        """
+        tool_descriptions = "\n".join(desc_lines)
 
-    def run(self, user_input: str) -> str:
+        return (
+            "You are an assistant that must think step-by-step using the ReAct pattern.\n"
+            "When reasoning, follow this exact format:\n"
+            "Thought: <your thought about what to do next>\n"
+            "Action: tool_name(arg1,arg2)  # call one available tool with arguments\n"
+            "Observation: <result from the tool>\n"
+            "...repeat Thought/Action/Observation as needed...\n"
+            "Final Answer: <the final user-facing plan or answer>\n\n"
+            "Available tools:\n"
+            f"{tool_descriptions}\n\n"
+            "Guardrails:\n"
+            "- Only call tools listed above.\n"
+            "- Keep answers concise and actionable.\n"
+            "- If unsure, ask one clarifying question instead of guessing.\n"
+        )
+
+    def run(self, user_input: str) -> Dict[str, Any]:
         """
-        TODO: Implement the ReAct loop logic.
-        1. Generate Thought + Action.
-        2. Parse Action and execute Tool.
-        3. Append Observation to prompt and repeat until Final Answer.
+        Execute the ReAct loop until a Final Answer is produced or max_steps reached.
+
+        Returns a dict with final answer (if any), step count, and history.
+        Also prints traces to terminal and logs structured events.
         """
-        logger.log_event("AGENT_START", {"input": user_input, "model": self.llm.model_name})
-        
-        current_prompt = user_input
+        logger.log_event("AGENT_START", {"input": user_input, "model": getattr(self.llm, 'model_name', None)})
+        print("=== ReAct Agent Trace ===")
+
+        conversation_append = ""  # observations appended for the LLM
         steps = 0
 
         while steps < self.max_steps:
-            # TODO: Generate LLM response
-            # result = self.llm.generate(current_prompt, system_prompt=self.get_system_prompt())
-            
-            # TODO: Parse Thought/Action from result
-            
-            # TODO: If Action found -> Call tool -> Append Observation
-            
-            # TODO: If Final Answer found -> Break loop
-            
-            steps += 1
-            
-        logger.log_event("AGENT_END", {"steps": steps})
-        return "Not implemented. Fill in the TODOs!"
+            prompt = user_input + "\n" + conversation_append
+            # Call the LLM
+            try:
+                response = self.llm.generate(prompt, system_prompt=self.get_system_prompt())
+                content = response.get("content") if isinstance(response, dict) else str(response)
+            except Exception as e:
+                logger.error("LLM_CALL_ERROR", exc_info=e)
+                return {"error": "LLM call failed", "exc": str(e)}
 
-    def _execute_tool(self, tool_name: str, args: str) -> str:
+            # Log and print the raw LLM output
+            logger.log_event("LLM_RESPONSE", {"content": content})
+            print(f"LLM output:\n{content}\n---")
+            self.history.append({"llm_output": content})
+
+            # Parse lines for Thought/Action/Observation/Final Answer
+            thought = None
+            action_text = None
+            final_answer = None
+
+            for line in content.splitlines():
+                s = line.strip()
+                if not s:
+                    continue
+                low = s.lower()
+                if low.startswith("thought:"):
+                    thought = s[len("thought:"):].strip()
+                elif low.startswith("action:"):
+                    action_text = s[len("action:"):].strip()
+                elif low.startswith("final answer:") or low.startswith("final:"):
+                    final_answer = s.split(":", 1)[1].strip() if ":" in s else s
+
+            if thought:
+                logger.log_event("THOUGHT", {"text": thought})
+                print(f"Thought: {thought}")
+
+            if action_text:
+                logger.log_event("ACTION", {"text": action_text})
+                print(f"Action: {action_text}")
+
+                # Parse action: tool_name(args)
+                m = re.match(r"^([a-zA-Z0-9_\-]+)\s*\((.*)\)$", action_text)
+                if m:
+                    tool_name = m.group(1)
+                    raw_args = m.group(2).strip()
+                else:
+                    tool_name = action_text.strip()
+                    raw_args = ""
+
+                # Simple safety: only allow known tools
+                allowed = [t.get("name") if isinstance(t, dict) else getattr(t, "__name__", None) for t in self.tools]
+                allowed = [a for a in allowed if a]
+                if tool_name not in allowed:
+                    obs = f"Tool {tool_name} not allowed."
+                    logger.log_event("GUARDRAIL", {"reason": "unknown_tool", "tool": tool_name})
+                    print(f"Observation: {obs}")
+                    conversation_append += f"\nObservation: {obs}\n"
+                    self.history.append({"observation": obs})
+                    steps += 1
+                    continue
+
+                # Execute the tool
+                obs = self._execute_tool(tool_name, raw_args)
+                # Normalize
+                obs_str = obs if isinstance(obs, str) else json.dumps(obs)
+                logger.log_event("OBSERVATION", {"tool": tool_name, "result": obs_str})
+                print(f"Observation: {obs_str}")
+
+                # Append observation for next iteration
+                conversation_append += f"\nObservation: {obs_str}\n"
+                self.history.append({"tool": tool_name, "args": raw_args, "observation": obs_str})
+
+                steps += 1
+                continue
+
+            if final_answer:
+                logger.log_event("AGENT_END", {"steps": steps + 1, "final": final_answer})
+                print(f"Final Answer: {final_answer}")
+                return {"final_answer": final_answer, "steps": steps + 1, "history": self.history}
+
+            # Nothing actionable: return LLM raw output as fallback
+            steps += 1
+            print("No Action or Final Answer found in LLM response; continuing...")
+
+        logger.log_event("AGENT_END", {"steps": steps})
+        return {"note": "max steps reached", "steps": steps, "history": self.history}
+
+    def _execute_tool(self, tool_name: str, args: str) -> Any:
         """
-        Helper method to execute tools by name.
+        Execute a tool from the provided tools list. Tools can be dicts with 'name' and 'function', or direct callables.
+        Args string is passed raw and tool implementations are responsible for parsing it.
         """
-        for tool in self.tools:
-            if tool['name'] == tool_name:
-                # TODO: Implement dynamic function calling or simple if/else
-                return f"Result of {tool_name}"
+        # Try to find the tool
+        for t in self.tools:
+            if isinstance(t, dict) and t.get("name") == tool_name:
+                func = t.get("function") or t.get("func")
+                if callable(func):
+                    try:
+                        # Basic parsing: if args looks like comma-separated values, split
+                        parsed_args = self._parse_args(args)
+                        return func(*parsed_args)
+                    except Exception as e:
+                        logger.error(f"Tool {tool_name} error: {e}")
+                        return f"Tool {tool_name} error: {e}"
+            elif callable(t) and getattr(t, "__name__", None) == tool_name:
+                try:
+                    parsed_args = self._parse_args(args)
+                    return t(*parsed_args)
+                except Exception as e:
+                    logger.error(f"Tool {tool_name} error: {e}")
+                    return f"Tool {tool_name} error: {e}"
+
         return f"Tool {tool_name} not found."
+
+    def _parse_args(self, raw: str) -> List[Any]:
+        """Very small argument parser: splits by comma and strips quotes/spaces."""
+        if not raw:
+            return []
+        parts = [p.strip() for p in raw.split(",")]
+        parsed = []
+        for p in parts:
+            if p.startswith('"') and p.endswith('"') or p.startswith("'") and p.endswith("'"):
+                parsed.append(p[1:-1])
+            else:
+                # try to parse int
+                if p.isdigit():
+                    parsed.append(int(p))
+                else:
+                    parsed.append(p)
+        return parsed
