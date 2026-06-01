@@ -53,32 +53,6 @@ class ReActAgent:
         )
 
     
-    def _execute_tool(self, tool_name: str, args: str) -> Any:
-        """
-        Execute a tool from the provided tools list. Tools can be dicts with 'name' and 'function', or direct callables.
-        Args string is passed raw and tool implementations are responsible for parsing it.
-        """
-        # Try to find the tool
-        for t in self.tools:
-            if isinstance(t, dict) and t.get("name") == tool_name:
-                func = t.get("function") or t.get("func")
-                if callable(func):
-                    try:
-                        # Basic parsing: if args looks like comma-separated values, split
-                        parsed_args = self._parse_args(args)
-                        return func(*parsed_args)
-                    except Exception as e:
-                        logger.error(f"Tool {tool_name} error: {e}")
-                        return f"Tool {tool_name} error: {e}"
-            elif callable(t) and getattr(t, "__name__", None) == tool_name:
-                try:
-                    parsed_args = self._parse_args(args)
-                    return t(*parsed_args)
-                except Exception as e:
-                    logger.error(f"Tool {tool_name} error: {e}")
-                    return f"Tool {tool_name} error: {e}"
-
-        return f"Tool {tool_name} not found."
 
     def _parse_args(self, raw: str) -> List[Any]:
         """Very small argument parser: splits by comma and strips quotes/spaces."""
