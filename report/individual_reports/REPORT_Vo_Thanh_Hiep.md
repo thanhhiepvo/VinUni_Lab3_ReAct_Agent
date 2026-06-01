@@ -105,10 +105,6 @@
 - **Performance**: Use a vector DB (FAISS/Weaviate) for retrieval-augmented tool selection and cache common tool outputs. Add retry/backoff and fallback providers (OpenAI/Gemini/Dummy) for resilience.
 - **Observability**: Emit structured telemetry to a monitoring backend (Prometheus + Grafana) and keep centralized logs with request IDs for debugging.
 
----
-
-> Submit this report by renaming it to `REPORT_Vo_Thanh_Hiep.md` and placing it in this folder.
-
 
 ---
 
