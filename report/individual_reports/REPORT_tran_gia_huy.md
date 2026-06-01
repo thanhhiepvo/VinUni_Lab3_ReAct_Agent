@@ -1,6 +1,6 @@
 # Individual Report: Lab 3 - Chatbot vs ReAct Agent
 
-- **Student Name**:  Trần Gia Huy
+- **Student Name**: Tran Gia Huy
 - **Student ID**: 2A202600812
 - **Date**: 01/06/2026
 
@@ -8,105 +8,118 @@
 
 ## I. Technical Contribution (15 Points)
 
-*Describe your specific contribution to the codebase (e.g., implemented a specific tool, fixed the parser, etc.).*
+Đóng góp chính của tôi trong lab là hoàn thành phần **frontend UI dashboard** cho hệ thống so sánh Chatbot và ReAct Agent. Thay vì chỉ chạy agent trong terminal, tôi xây dựng giao diện trực quan để người dùng nhập câu hỏi, chọn provider, xem kết quả song song, theo dõi trace và phân tích lỗi.
 
-- **Modules Implementated**: [e.g., `src/tools/search_tool.py`]
-- **Code Highlights**: [Copy snippets or link file lines]
-- **Documentation**: [Brief explanation of how your code interacts with the ReAct loop]
+### Modules Implemented
 
----
+- `src/frontend/app/page.tsx`: render màn hình chính của dashboard.
+- `src/frontend/app/layout.tsx`: cấu hình metadata tiếng Việt và layout root.
+- `src/frontend/components/dashboard.tsx`: bố cục tổng thể gồm header, control panel, metrics, comparison, trace, tool inventory và failure analysis.
+- `src/frontend/components/control-panel.tsx`: form nhập câu hỏi, chọn provider OpenAI/Gemini/Local/Dummy và chọn ví dụ ôn thi.
+- `src/frontend/components/response-comparison.tsx`: so sánh phản hồi Chatbot cơ sở và ReAct Agent.
+- `src/frontend/components/react-trace.tsx`: hiển thị từng bước `Thought`, `Action`, `Observation`.
+- `src/frontend/components/metrics-cards.tsx`: hiển thị độ trễ, token, số vòng lặp, chi phí và trạng thái.
+- `src/frontend/components/tool-inventory.tsx`: hiển thị danh sách tool `summarize`, `list_topics`, `sample_practice`.
+- `src/frontend/components/failure-analysis.tsx`: phân loại lỗi như ảo giác công cụ, lỗi parser và vượt số bước.
+- `src/frontend/components/export-button.tsx`: xuất báo cáo demo dạng JSON hoặc Markdown.
+- `src/frontend/lib/mock-data.ts`: dữ liệu demo tiếng Việt theo đúng use case ôn thi Giải tích.
+- `src/frontend/package.json`: cấu hình dependency và script chạy Next.js dashboard.
 
-## II. Debugging Case Study (10 Points)
+### Code Highlights
 
-*Analyze a specific failure event you encountered during the lab using the logging system.*
+- Tôi Việt hóa toàn bộ text UI để phù hợp với người dùng trong lab: "Bảng điều khiển", "Câu hỏi", "Chạy so sánh", "Trace ReAct", "Phân tích lỗi", "Danh sách công cụ".
+- UI bám sát use case thật của repo: ôn thi Giải tích bằng `summarize`, `list_topics`, `sample_practice`.
+- Dashboard cho phép nhìn rõ sự khác nhau giữa Chatbot và ReAct Agent:
+  - Chatbot trả lời một lần.
+  - ReAct Agent có trace từng bước và có thể giải thích vì sao kết quả được tạo ra.
+- Tôi cấu hình build Next.js ổn định hơn bằng cách tránh phụ thuộc font online và dùng system font.
+- Tôi đã cài dependency bằng `npm install` và xác minh `npm run build` chạy thành công.
 
-- **Problem Description**: [e.g., Agent caught in an infinite loop with `Action: search(None)`]
-- **Log Source**: [Link or snippet from `logs/YYYY-MM-DD.log`]
-- **Diagnosis**: [Why did the LLM do this? Was it the prompt, the model, or the tool spec?]
-- **Solution**: [How did you fix it? (e.g., updated `Thought` examples in the system prompt)]
+### Documentation
 
----
+Tôi bổ sung hướng dẫn chạy frontend vào `README.md`:
 
-## III. Personal Insights: Chatbot vs ReAct (10 Points)
+```bash
+cd src/frontend
+npm install
+npm run dev
+```
 
-*Reflect on the reasoning capability difference.*
-
-1.  **Reasoning**: How did the `Thought` block help the agent compared to a direct Chatbot answer?
-2.  **Reliability**: In which cases did the Agent actually perform *worse* than the Chatbot?
-3.  **Observation**: How did the environment feedback (observations) influence the next steps?
-
----
-
-## IV. Future Improvements (5 Points)
-
-*How would you scale this for a production-level AI agent system?*
-
-- **Scalability**: [e.g., Use an asynchronous queue for tool calls]
-- **Safety**: [e.g., Implement a 'Supervisor' LLM to audit the agent's actions]
-- **Performance**: [e.g., Vector DB for tool retrieval in a many-tool system]
-
----
-
-## I. Technical Contribution (15 Points)
-
-- **Modules Implemented**:
-	- `src/agent/agent.py` — `ReActAgent` implementation (ReAct loop, action parsing, tool execution).
-	- `src/agent/tools.py` — tool registry: `summarize`, `list_topics`, `sample_practice`.
-	- `src/data/toy_dataset.py` — deterministic toy dataset for testing (calculus, algebra).
-	- `src/core/gemini_provider.py` — Gemini provider integration (fixed import and API usage).
-	- `src/core/openai_provider.py` — OpenAI provider for running with `OPENAI_API_KEY`.
-	- `run_agent.py` — demo runner (switched between providers, manual .env loader, demo flow).
-
-- **Code Highlights**:
-	- `ReActAgent.run()` — orchestrates Thought → Action → Observation cycle, calls LLM, parses actions, executes tools via `_execute_tool()` and appends observations to the prompt history.
-	- Tool registry (`TOOLS`) — dictionary entries `{name, function, description}` enabling dynamic execution and guardrails.
-	- `_parse_args()` in `agent.py` — robust parsing for comma/quote-separated tool arguments.
-
-- **Documentation**:
-	- The agent uses a system prompt that describes tool names and usage examples. Each LLM response is parsed for `Thought`, `Action(...)`, `Observation`, and `Final Answer`. Tools return deterministic outputs from the toy dataset or call external providers when configured. Logs are written to `logs/YYYY-MM-DD.log` for traceability.
+Sau đó mở `http://localhost:3000` để xem dashboard.
 
 ---
 
 ## II. Debugging Case Study (10 Points)
 
-- **Problem Description**:
-	- While switching to real APIs I encountered runtime failures: missing dependencies and provider import mismatches, and an API quota error when calling Gemini.
+### Problem Description
 
-- **Log Source (representative snippets)**:
-	- `ModuleNotFoundError: No module named 'dotenv'` — when `dotenv` was imported but unavailable.
-	- `AttributeError: module 'google.genai' has no attribute 'configure'` — due to incorrect import name.
-	- `google.api_core.exceptions.ResourceExhausted: 429 You exceeded your current quota` — Gemini API quota exhausted during a real request.
+Trong quá trình tích hợp UI từ v0 vào dự án, tôi gặp hai nhóm lỗi chính:
 
-- **Diagnosis**:
-	- Missing `python-dotenv` caused an import error in the demo script. The Gemini client package changed name/usage (`google.generativeai` vs `google.genai`) which caused the attribute error. Finally, the Gemini API key was valid but the project had no free-tier quota left, resulting in a 429 from the remote API.
+1. Frontend chưa có dependency nên không thể chạy Next.js.
+2. Lệnh build bị lỗi vì Next.js cố tải Google Fonts trong môi trường hạn chế network.
 
-- **Solution**:
-	- Removed unconditional `dotenv` import and added a small `_load_env()` helper that reads `.env` into `os.environ` so the demo works without the package.
-	- Updated `src/core/gemini_provider.py` to import `google.generativeai` and use the correct client initialization.
-	- Added `src/core/openai_provider.py` usage path and updated `run_agent.py` to support launching with `OPENAI_API_KEY` as a fallback for local testing.
-	- Created a venv and installed required packages from `requirements.txt` and verified the runtime flow. For the quota error, the mitigation is to use an API key with sufficient quota or use the provided deterministic `DummyProvider` for offline testing.
+### Log Source / Evidence
+
+Khi chạy `npm install` lần đầu trong sandbox:
+
+```text
+npm error code ENOTCACHED
+request to https://registry.npmjs.org/... failed
+cache mode is 'only-if-cached' but no cached response is available
+```
+
+Khi chạy `npm run build`:
+
+```text
+next/font: error:
+Failed to fetch `Geist` from Google Fonts.
+Failed to fetch `Geist Mono` from Google Fonts.
+```
+
+### Diagnosis
+
+- Lỗi `ENOTCACHED` xảy ra vì môi trường sandbox không được phép tải package từ npm registry.
+- Lỗi Google Fonts xảy ra vì `next/font/google` cần network trong lúc build, trong khi môi trường build có thể bị chặn hoặc không ổn định.
+- Ngoài ra, trên Windows có lúc build gặp lỗi `EPERM` khi thao tác với thư mục `.next`; đây là lỗi file lock/quyền ghi thường gặp khi Next.js/Turbopack đang xử lý output.
+
+### Solution
+
+- Tôi chạy lại `npm install` với quyền phù hợp để tải dependency cho frontend.
+- Tôi sửa `src/frontend/app/layout.tsx` để bỏ import `next/font/google`.
+- Tôi cập nhật `src/frontend/app/globals.css` để dùng system font:
+
+```css
+--font-sans: Arial, Helvetica, sans-serif;
+--font-mono: Consolas, 'Courier New', monospace;
+```
+
+- Tôi cấu hình `distDir: ".next-build"` trong `next.config.mjs` và ignore thư mục này trong `.gitignore`.
+- Cuối cùng, tôi xác minh `npm run build` thành công và dev server trả `200 OK` tại `http://localhost:3000`.
 
 ---
 
 ## III. Personal Insights: Chatbot vs ReAct (10 Points)
 
-1. **Reasoning**: The `Thought` block makes the agent's intentions explicit and enables multi-step planning. Instead of a single-shot answer, the agent lists subgoals, chooses tools, and incrementally builds the final response — producing more structured, actionable study plans.
+1. **Reasoning**: Chatbot trả lời nhanh nhưng khó biết nó suy luận thế nào. ReAct Agent có `Thought`, `Action`, `Observation`, vì vậy quá trình suy luận trở nên rõ ràng hơn. Khi đưa trace lên UI, người xem dễ hiểu agent đang làm gì và vì sao nó chọn tool đó.
 
-2. **Reliability**: The Agent can perform worse than a Chatbot when the tool implementations are incomplete or the LLM issues an action referencing an unavailable tool (or uses ambiguous arguments). In those cases the Chatbot's single-shot answer may be more useful because it does not rely on external tool correctness.
+2. **Reliability**: Agent không phải lúc nào cũng tốt hơn chatbot. Nếu tool thiếu dữ liệu hoặc model gọi sai argument, agent có thể trả kết quả rỗng hoặc bị kẹt vòng lặp. Ví dụ dataset chỉ có `calculus`, nhưng model có thể gọi `"Giải tích"` hoặc `"Integrals"`, dẫn đến tool không tìm được dữ liệu.
 
-3. **Observation**: Observations (tool outputs) directly steer subsequent Thoughts and Actions. For example, if `sample_practice(topic)` returns empty, the agent will pivot to other topics or request clarification; this feedback loop improves correctness but depends on tool coverage.
+3. **Observation**: Observation là điểm khác biệt quan trọng nhất. Nó giúp agent điều chỉnh bước tiếp theo dựa trên kết quả thật từ tool. Tuy nhiên, nếu model tự bịa Observation thay vì chờ tool thật, trace sẽ mất độ tin cậy. Vì vậy UI failure analysis rất cần thiết để phát hiện lỗi này.
+
+4. **UI Insight**: Khi chỉ xem terminal log, khó thuyết trình và khó so sánh. Sau khi có dashboard, trace, metrics và failure trở nên trực quan hơn. UI không chỉ là phần trang trí mà là công cụ debug và báo cáo cho agentic system.
 
 ---
 
 ## IV. Future Improvements (5 Points)
 
-- **Scalability**: Introduce an asynchronous task queue for tool execution, and a service layer that can horizontally scale expensive tools (e.g., a microservice serving practice problems).
-- **Safety**: Add a supervisor LLM that reviews proposed `Action(...)` calls and blocks unsafe tool invocations; add input sanitization and rate-limit-aware backoff.
-- **Performance**: Use a vector DB (FAISS/Weaviate) for retrieval-augmented tool selection and cache common tool outputs. Add retry/backoff and fallback providers (OpenAI/Gemini/Dummy) for resilience.
-- **Observability**: Emit structured telemetry to a monitoring backend (Prometheus + Grafana) and keep centralized logs with request IDs for debugging.
-
+- **Backend Integration**: nối Next.js frontend với Python agent thật qua API endpoint thay vì dùng mock data.
+- **Real Metrics**: lấy latency, token usage, loop count và cost trực tiếp từ `src/telemetry/metrics.py`.
+- **Vietnamese Tool Mapping**: thêm alias tiếng Việt như `giải tích -> calculus`, `đạo hàm -> derivatives`, `tích phân -> integrals`.
+- **Trace Quality**: ép model chỉ xuất một `Action` mỗi lượt và không tự tạo `Observation`.
+- **Production UI**: thêm lịch sử lần chạy, bộ lọc failure, biểu đồ latency/token và chức năng import log JSON từ `logs/`.
 
 ---
 
-> [!NOTE]
-> Submit this report by renaming it to `REPORT_[YOUR_NAME].md` and placing it in this folder.
+## V. Summary
+
+Trong lab này, đóng góp chính của tôi là hoàn thành UI frontend để biến prototype ReAct Agent từ một chương trình chạy trong terminal thành một dashboard có thể demo, phân tích và xuất báo cáo. Phần UI giúp thể hiện rõ giá trị của ReAct: không chỉ có câu trả lời cuối cùng, mà còn có toàn bộ quá trình suy nghĩ, hành động, quan sát và lỗi phát sinh.
