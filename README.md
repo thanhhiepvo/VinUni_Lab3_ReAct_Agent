@@ -15,7 +15,18 @@ cp .env.example .env
 pip install -r requirements.txt
 ```
 
-### 3. Directory Structure
+### 3. Run the Frontend Dashboard
+The Vietnamese dashboard lives in `src/frontend`.
+
+```bash
+cd src/frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:3000` to view the Chatbot vs ReAct Agent comparison UI.
+
+### 4. Directory Structure
 - `src/tools/`: Extension point for your custom tools.
 
 ## 🏠 Running with Local Models (CPU)
