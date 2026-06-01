@@ -171,4 +171,19 @@ class ReActAgent:
 
         return f"Tool {tool_name} not found."
 
-    
+    def _parse_args(self, raw: str) -> List[Any]:
+        """Very small argument parser: splits by comma and strips quotes/spaces."""
+        if not raw:
+            return []
+        parts = [p.strip() for p in raw.split(",")]
+        parsed = []
+        for p in parts:
+            if p.startswith('"') and p.endswith('"') or p.startswith("'") and p.endswith("'"):
+                parsed.append(p[1:-1])
+            else:
+                # try to parse int
+                if p.isdigit():
+                    parsed.append(int(p))
+                else:
+                    parsed.append(p)
+        return parsed
