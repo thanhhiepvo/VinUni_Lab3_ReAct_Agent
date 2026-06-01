@@ -1,5 +1,5 @@
 import os
-from src.core.gemini_provider import GeminiProvider
+from src.core.openai_provider import OpenAIProvider
 from src.agent.agent import ReActAgent
 from src.agent import tools
 from src.telemetry.logger import logger
@@ -28,14 +28,14 @@ TOOLS = [
 
 
 def run_demo(user_input: str):
-    # Instantiate Gemini LLM and agent
-    api_key = os.getenv("GEMINI_API_KEY")
+    # Instantiate OpenAI LLM and agent
+    api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        print("❌ Error: GEMINI_API_KEY not set in .env file.")
-        print("Please add your Gemini API key to .env and try again.")
+        print("❌ Error: OPENAI_API_KEY not set in .env file.")
+        print("Please add your OpenAI API key to .env and try again.")
         return
 
-    llm = GeminiProvider(api_key=api_key)
+    llm = OpenAIProvider(api_key=api_key)
     agent = ReActAgent(llm=llm, tools=TOOLS)
 
     print("\n--- Running Chatbot baseline (single-shot) ---\n")
