@@ -1,116 +1,224 @@
 # Individual Report: Lab 3 - Chatbot vs ReAct Agent
 
-- **Student Name**:  Võ Thanh Hiệp
-- **Student ID**: 2A202600836
-- **Date**: 01/06/2026
+* **Student Name**: Nguyễn Công Tuấn Anh
+* **Student ID**: 2A202600977
+* **Date**: 01/06/2026
 
 ---
 
-## I. Technical Contribution (15 Points)
+# I. Technical Contribution (15 Points)
 
-*Describe your specific contribution to the codebase (e.g., implemented a specific tool, fixed the parser, etc.).*
+## Modules Implemented
 
-- **Modules Implementated**: [e.g., `src/tools/search_tool.py`]
-- **Code Highlights**: [Copy snippets or link file lines]
-- **Documentation**: [Brief explanation of how your code interacts with the ReAct loop]
+* `src/agent/react_agent.py`
 
----
+  * Implemented the ReAct Agent architecture.
+  * Added Thought → Action → Observation workflow.
+  * Added action execution and observation tracking.
 
-## II. Debugging Case Study (10 Points)
+* `src/tools/tools.py`
 
-*Analyze a specific failure event you encountered during the lab using the logging system.*
+  * Implemented study-planning tools:
 
-- **Problem Description**: [e.g., Agent caught in an infinite loop with `Action: search(None)`]
-- **Log Source**: [Link or snippet from `logs/YYYY-MM-DD.log`]
-- **Diagnosis**: [Why did the LLM do this? Was it the prompt, the model, or the tool spec?]
-- **Solution**: [How did you fix it? (e.g., updated `Thought` examples in the system prompt)]
+    * `calculate_priority()`
+    * `analyze_exam()`
+    * `create_study_plan()`
 
----
+* `src/safeguards/validator.py`
 
-## III. Personal Insights: Chatbot vs ReAct (10 Points)
+  * Input validation.
+  * Prompt injection detection.
+  * User data sanity checking.
 
-*Reflect on the reasoning capability difference.*
+* `src/telemetry/logger.py`
 
-1.  **Reasoning**: How did the `Thought` block help the agent compared to a direct Chatbot answer?
-2.  **Reliability**: In which cases did the Agent actually perform *worse* than the Chatbot?
-3.  **Observation**: How did the environment feedback (observations) influence the next steps?
+  * Logging system.
+  * Agent activity tracking.
+  * Error logging.
 
----
+* `src/main.py`
 
-## IV. Future Improvements (5 Points)
-
-*How would you scale this for a production-level AI agent system?*
-
-- **Scalability**: [e.g., Use an asynchronous queue for tool calls]
-- **Safety**: [e.g., Implement a 'Supervisor' LLM to audit the agent's actions]
-- **Performance**: [e.g., Vector DB for tool retrieval in a many-tool system]
+  * User interaction.
+  * Agent initialization.
+  * Runtime execution.
 
 ---
 
-## I. Technical Contribution (15 Points)
+## Code Highlights
 
-- **Modules Implemented**:
-	- `src/agent/agent.py` — `ReActAgent` implementation (ReAct loop, action parsing, tool execution).
-	- `src/agent/tools.py` — tool registry: `summarize`, `list_topics`, `sample_practice`.
-	- `src/data/toy_dataset.py` — deterministic toy dataset for testing (calculus, algebra).
-	- `src/core/gemini_provider.py` — Gemini provider integration (fixed import and API usage).
-	- `src/core/openai_provider.py` — OpenAI provider for running with `OPENAI_API_KEY`.
-	- `run_agent.py` — demo runner (switched between providers, manual .env loader, demo flow).
+### ReAct Loop
 
-- **Code Highlights**:
-	- `ReActAgent.run()` — orchestrates Thought → Action → Observation cycle, calls LLM, parses actions, executes tools via `_execute_tool()` and appends observations to the prompt history.
-	- Tool registry (`TOOLS`) — dictionary entries `{name, function, description}` enabling dynamic execution and guardrails.
-	- `_parse_args()` in `agent.py` — robust parsing for comma/quote-separated tool arguments.
+The agent follows a ReAct workflow:
 
-- **Documentation**:
-	- The agent uses a system prompt that describes tool names and usage examples. Each LLM response is parsed for `Thought`, `Action(...)`, `Observation`, and `Final Answer`. Tools return deterministic outputs from the toy dataset or call external providers when configured. Logs are written to `logs/YYYY-MM-DD.log` for traceability.
+Thought → Action → Observation → Final Answer
 
----
+Example:
 
-## II. Debugging Case Study (10 Points)
+```python
+thought = "Calculate subject priorities"
 
-- **Problem Description**:
-	- While switching to real APIs I encountered runtime failures: missing dependencies and provider import mismatches, and an API quota error when calling Gemini.
+action = "calculate_priority"
 
-- **Log Source (representative snippets)**:
-	- `ModuleNotFoundError: No module named 'dotenv'` — when `dotenv` was imported but unavailable.
-	- `AttributeError: module 'google.genai' has no attribute 'configure'` — due to incorrect import name.
-	- `google.api_core.exceptions.ResourceExhausted: 429 You exceeded your current quota` — Gemini API quota exhausted during a real request.
+priority = self.tools[action](subjects)
 
-- **Diagnosis**:
-	- Missing `python-dotenv` caused an import error in the demo script. The Gemini client package changed name/usage (`google.generativeai` vs `google.genai`) which caused the attribute error. Finally, the Gemini API key was valid but the project had no free-tier quota left, resulting in a 429 from the remote API.
+observation = priority
+```
 
-- **Solution**:
-	- Removed unconditional `dotenv` import and added a small `_load_env()` helper that reads `.env` into `os.environ` so the demo works without the package.
-	- Updated `src/core/gemini_provider.py` to import `google.generativeai` and use the correct client initialization.
-	- Added `src/core/openai_provider.py` usage path and updated `run_agent.py` to support launching with `OPENAI_API_KEY` as a fallback for local testing.
-	- Created a venv and installed required packages from `requirements.txt` and verified the runtime flow. For the quota error, the mitigation is to use an API key with sufficient quota or use the provided deterministic `DummyProvider` for offline testing.
+### Logging
 
----
+Every agent action is recorded:
 
-## III. Personal Insights: Chatbot vs ReAct (10 Points)
+```python
+logger.info(f"Thought: {thought}")
+logger.info(f"Action: {action}")
+logger.info(f"Observation: {observation}")
+```
 
-1. **Reasoning**: The `Thought` block makes the agent's intentions explicit and enables multi-step planning. Instead of a single-shot answer, the agent lists subgoals, chooses tools, and incrementally builds the final response — producing more structured, actionable study plans.
+### Safeguards
 
-2. **Reliability**: The Agent can perform worse than a Chatbot when the tool implementations are incomplete or the LLM issues an action referencing an unavailable tool (or uses ambiguous arguments). In those cases the Chatbot's single-shot answer may be more useful because it does not rely on external tool correctness.
+Input validation:
 
-3. **Observation**: Observations (tool outputs) directly steer subsequent Thoughts and Actions. For example, if `sample_practice(topic)` returns empty, the agent will pivot to other topics or request clarification; this feedback loop improves correctness but depends on tool coverage.
+```python
+validate_subjects(subjects)
+validate_days(days_left)
+```
+
+Prompt injection protection:
+
+```python
+if detect_prompt_injection(user_input):
+    return "Unsafe request detected"
+```
 
 ---
 
-## IV. Future Improvements (5 Points)
+## Documentation
 
-- **Scalability**: Introduce an asynchronous task queue for tool execution, and a service layer that can horizontally scale expensive tools (e.g., a microservice serving practice problems).
-- **Safety**: Add a supervisor LLM that reviews proposed `Action(...)` calls and blocks unsafe tool invocations; add input sanitization and rate-limit-aware backoff.
-- **Performance**: Use a vector DB (FAISS/Weaviate) for retrieval-augmented tool selection and cache common tool outputs. Add retry/backoff and fallback providers (OpenAI/Gemini/Dummy) for resilience.
-- **Observability**: Emit structured telemetry to a monitoring backend (Prometheus + Grafana) and keep centralized logs with request IDs for debugging.
+The system receives user exam information, analyzes study urgency, calculates priorities, and generates a study plan.
 
----
-
-> Submit this report by renaming it to `REPORT_Vo_Thanh_Hiep.md` and placing it in this folder.
-
+The agent uses a deterministic set of tools and records every reasoning step through logs for traceability and debugging.
 
 ---
 
-> [!NOTE]
-> Submit this report by renaming it to `REPORT_[YOUR_NAME].md` and placing it in this folder.
+# II. Debugging Case Study (10 Points)
+
+## Problem Description
+
+While implementing the logging system, the application crashed before the agent started.
+
+Error:
+
+```text
+FileNotFoundError:
+No such file or directory:
+logs/agent.log
+```
+
+## Log Source
+
+```text
+logging.basicConfig(
+    filename="logs/agent.log"
+)
+```
+
+Python attempted to create the log file inside a folder that did not exist.
+
+## Diagnosis
+
+The logging configuration expected a directory named `logs`.
+
+However, the project structure did not contain that folder.
+
+Because Python's FileHandler does not automatically create directories, the application failed during startup.
+
+## Solution
+
+Created the directory automatically:
+
+```python
+import os
+
+os.makedirs("logs", exist_ok=True)
+```
+
+Improved version:
+
+```python
+from pathlib import Path
+
+LOG_DIR = BASE_DIR / "logs"
+LOG_DIR.mkdir(exist_ok=True)
+```
+
+After the fix, the agent successfully generated logs and continued execution.
+
+---
+
+# III. Personal Insights: Chatbot vs ReAct (10 Points)
+
+## 1. Reasoning
+
+A traditional chatbot directly produces an answer from the prompt.
+
+The ReAct Agent first reasons about the problem, decides which tool to use, executes the tool, observes the result, and then continues reasoning.
+
+This makes the decision-making process transparent and easier to debug.
+
+## 2. Reliability
+
+The ReAct Agent can perform worse than a chatbot when:
+
+* Tools contain bugs.
+* Invalid actions are generated.
+* Tool outputs are incomplete.
+
+In those situations, the chatbot may still provide a reasonable answer because it does not depend on external tools.
+
+## 3. Observation
+
+Observations are the most important part of the ReAct architecture.
+
+For example:
+
+* Tool returns study priority.
+* Agent observes the result.
+* Agent decides how to allocate study hours.
+
+Without observations, the agent cannot adapt its future actions.
+
+---
+
+# IV. Future Improvements (5 Points)
+
+## Scalability
+
+* Add more educational tools.
+* Support multiple exams simultaneously.
+* Connect to external educational APIs.
+
+## Safety
+
+* Implement a supervisor agent.
+* Add tool execution permissions.
+* Expand prompt injection detection rules.
+
+## Performance
+
+* Cache previous study plans.
+* Add vector search for educational content.
+* Reduce repeated tool executions.
+
+## Observability
+
+* Structured JSON logs.
+* Request IDs for tracing.
+* Monitoring dashboard integration.
+
+---
+
+# Conclusion
+
+This project demonstrates the implementation of a simple ReAct Agent for exam preparation planning.
+
+Compared to a traditional chatbot, the ReAct Agent provides a more transparent reasoning process through Thought, Action, and Observation steps. The addition of logging, safeguards, and validation mechanisms improves reliability and makes debugging significantly easier.
