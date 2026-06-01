@@ -16,7 +16,7 @@ class ReActAgent:
     def __init__(self, llm: LLMProvider, tools: List[Dict[str, Any]], max_steps: int = 6):
         self.llm = llm
         self.tools = tools
-        self.max_steps = max_steps
+        self.max_steps = max_stepsgit
         self.history: List[Dict[str, Any]] = []
 
     def get_system_prompt(self) -> str:
@@ -52,23 +52,7 @@ class ReActAgent:
             "- If unsure, ask one clarifying question instead of guessing.\n"
         )
 
-    def run(self, user_input: str) -> Dict[str, Any]:
-        """
-        Execute the ReAct loop until a Final Answer is produced or max_steps reached.
-
-        Returns a dict with final answer (if any), step count, and history.
-        Also prints traces to terminal and logs structured events.
-        """
-        logger.log_event("AGENT_START", {"input": user_input, "model": getattr(self.llm, 'model_name', None)})
-        print("=== ReAct Agent Trace ===")
-
-        conversation_append = ""  # observations appended for the LLM
-        steps = 0
-
-        
-        logger.log_event("AGENT_END", {"steps": steps})
-        return {"note": "max steps reached", "steps": steps, "history": self.history}
-
+    
     def _execute_tool(self, tool_name: str, args: str) -> Any:
         """
         Execute a tool from the provided tools list. Tools can be dicts with 'name' and 'function', or direct callables.
